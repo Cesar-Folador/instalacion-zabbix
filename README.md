@@ -2,7 +2,7 @@
 
 ---
 
-##Después de casi 18 años sin tocar Linux, me puse como desafío personal armar un laboratorio para implementar un sistema de monitoreo en la empresa.
+Después de casi 18 años sin tocar Linux, me puse como desafío personal armar un laboratorio para implementar un sistema de monitoreo en la empresa.
 
 ---
 Documentación paso a paso para la instalación y configuración de Zabbix Server en Ubuntu.
