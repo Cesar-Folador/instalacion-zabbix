@@ -131,7 +131,7 @@ sudo systemctl restart networking
 
 --------------------------------------------------------------------------------------------------------------
 
-Para asegurar el correcto funcionamiento de Zabbix y proteger tu servidor Linux (Debian/Ubuntu) usando el firewall nativo UFW (Uncomplicated Firewall), debes habilitar los puertos del servidor Zabbix, la interfaz Web y SSH.
+Para asegurar el correcto funcionamiento de Zabbix y proteger tu servidor Linux (Debian) usando el firewall nativo UFW (Uncomplicated Firewall), debes habilitar los puertos del servidor Zabbix, la interfaz Web y SSH.
 
 Puertos esenciales de Zabbix
 
