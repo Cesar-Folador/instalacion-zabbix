@@ -106,20 +106,24 @@ Para configurar una ip fija
 sudo nano /etc/network/interfaces
 ```
 
+```bash
 auto ens192
 iface ens192 inet static
-    address 192.168.100.173
+    address 192.168.100.***
     netmask 255.255.255.0
-    gateway 192.168.100.1
+    gateway 192.168.***.***
+```
 
 ```bash
 sudo nano /etc/resolv.conf
 ```
 
+```bash
 search.domino.test
 nameserver 192.168.***.***
 nameserver 192.168.***.***
 nameserver 1.1.1.1
+```
 
 ```bash
 sudo systemctl restart networking
