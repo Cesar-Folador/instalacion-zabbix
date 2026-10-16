@@ -1,191 +1,164 @@
-# Guía de Instalación de Zabbix Server 7.4 en Linux Debian 13 trixie
+> ⚠️ **ATENCIÓN / AVISO:** Este documento se encuentra actualmente **en proceso de revisión** y constante actualización. Las instrucciones o configuraciones descritas pueden estar sujetas a cambios.
+
+# Guía de Instalación y Configuración de Zabbix Server 7.4 en Debian 13 (Trixie)
+
+> Documentación paso a paso para desplegar un entorno de monitoreo profesional con Zabbix Server, MariaDB y Apache sobre Debian Linux.
 
 ---
 
-Después de casi 18 años sin tocar Linux, me puse como desafío personal armar un laboratorio para implementar un sistema de monitoreo en la empresa.
-
----
-Documentación paso a paso para la instalación y configuración de Zabbix Server en Ubuntu.
-
----
-
-## Requisitos Previos
-
-- **Sistema Operativo:** Debian Trixie
-- **Usuario:** Acceso con privilegios de `sudo`
-- **Recursos mínimos:** 2 CPU, 4 GB RAM, 100gb HD
+## 💻 Requisitos Previos
+- **Sistema Operativo:** Debian 13 (Trixie)
+- **Usuario:** Acceso con privilegios de `sudo` o `root`
+- **Recursos mínimos recomendados:** 2 CPU, 4 GB RAM, 100 GB HDD
 
 ---
 
 ## 🛠️ Pasos de Instalación
 
-### 1. Actualizar el sistema e instalar el repositorio de Zabbix
-
+### 1. Actualizar el sistema e instalar dependencias iniciales
 ```bash
 sudo apt update && sudo apt upgrade -y
-apt install mariadb-server
-apt install apache2
+sudo apt install mariadb-server apache2 ufw wget -y
 ```
 
-a. Instalar el repositorio de Zabbix
+2. Configurar el repositorio oficial de Zabbix
 
 ```bash
-wget https://repo.zabbix.com/zabbix/7.4/release/debian/pool/main/z/zabbix-release/zabbix-release_latest_7.4+debian13_all.deb
-dpkg -i zabbix-release_latest_7.4+debian13_all.deb
-apt update
-```
-
-b. Install Zabbix server, frontend, agent2
-
-```bash
- apt install zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf zabbix-sql-scripts zabbix-agent2
-```
-
-c. Install Zabbix agent 2 plugins
-You may want to install Zabbix agent 2 plugins.
-
-```bash
- apt install zabbix-agent2-plugin-mongodb zabbix-agent2-plugin-mssql zabbix-agent2-plugin-postgresql
-```
-
-c.1. Instalar mariaDB
-
-```bash
+wget [https://repo.zabbix.com/zabbix/7.4/release/debian/pool/main/z/zabbix-release/zabbix-release_latest_7.4+debian13_all.deb](https://repo.zabbix.com/zabbix/7.4/release/debian/pool/main/z/zabbix-release/zabbix-release_latest_7.4+debian13_all.deb)
+sudo dpkg -i zabbix-release_latest_7.4+debian13_all.deb
 sudo apt update
-sudo apt install mariadb-server  -y
+```
+3. Instalar Zabbix Server, Frontend, Agente y Plugins
+
+# Servidor, Interfaz Web, Agente 2 y Scripts de SQL
+```bash
+sudo apt install -y zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf zabbix-sql-scripts zabbix-agent2
 ```
 
-d. Crear base de datos inicial
-    Make sure you have database server up and running.
-    Ejecuta lo siguiente en el host de base de datos.
+# Plugins para Zabbix Agent 2
+```bash
+sudo apt install -y zabbix-agent2-plugin-mongodb zabbix-agent2-plugin-mssql zabbix-agent2-plugin-postgresql
+```
+
+4. Crear y configurar la base de datos MariaDB
+a. Crear base de datos y usuario
+Ingresa a la consola de MariaDB:
 
 ```bash
-# mysql -uroot -p
-password
-mysql> create database zabbix character set utf8mb4 collate utf8mb4_bin;
-mysql> create user zabbix@localhost identified by 'password';
-mysql> grant all privileges on zabbix.* to zabbix@localhost;
-mysql> set global log_bin_trust_function_creators = 1;
-mysql> quit;
+sudo mysql -u root -p
 ```
 
-En el servidor Zabbix, importe el esquema y los datos iniciales. Se le pedirá que ingrese la contraseña recién creada.
+Ejecuta las siguientes sentencias SQL:
 
+```bash
+CREATE DATABASE zabbix CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+CREATE USER 'zabbix'@'localhost' IDENTIFIED BY 'tu_contraseña_segura';
+GRANT ALL PRIVILEGES ON zabbix.* TO 'zabbix'@'localhost';
+SET GLOBAL log_bin_trust_function_creators = 1;
+FLUSH PRIVILEGES;
+EXIT;
+```
+
+b. Importar el esquema e historial inicial de Zabbix
 ```bash
 zcat /usr/share/zabbix/sql-scripts/mysql/server.sql.gz | mysql --default-character-set=utf8mb4 -uzabbix -p zabbix
 ```
 
-Disable log_bin_trust_function_creators option after importing database schema.
-
+c. Desactivar la opción de funciones globales
 ```bash
-# mysql -uroot -p
-password
-mysql> set global log_bin_trust_function_creators = 0;
-mysql> quit;
+sudo mysql -u root -p -e "SET GLOBAL log_bin_trust_function_creators = 0;"
 ```
 
-e. Configurar la base de datos para el servidor Zabbix
-Editar archivo /etc/zabbix/zabbix_server.conf
+d. Optimización de memoria para MariaDB
+Edita el archivo de configuración para evitar cuellos de botella en disco:
 
 ```bash
-DBPassword=password
+sudo nano /etc/mysql/mariadb.conf.d/50-server.cnf
 ```
-
-f. Inicia los procesos del agente y del servidor Zabbix
-Inicia los procesos del agente y del servidor Zabbix y configúralos para que se inicien con el sistema.
+Agrega al final de la sección [mariadb]:
 
 ```bash
-systemctl restart zabbix-server zabbix-agent2 apache2
-systemctl enable zabbix-server zabbix-agent2 apache2
+innodb_buffer_pool_size = 2G
+innodb_flush_log_at_trx_commit = 2
 ```
 
-g. Open Zabbix UI web page
-The default URL for Zabbix UI when using Apache web server is http://localhost/zabbix
+Reinicia MariaDB:
 
+```bash
+sudo systemctl restart mariadb
+```
 
+5. Configurar el Servidor Zabbix
+Edita el archivo principal de configuración de Zabbix:
 
+```bash
+sudo nano /etc/zabbix/zabbix_server.conf
+```
+Ajusta los siguientes parámetros:
+Ini, TOML
 
-Para configurar una ip fija
+```bash
+# Contraseña asignada en MariaDB
+DBPassword=tu_contraseña_segura
+
+# Ajuste para evitar la alerta "Value cache working in low-memory mode"
+ValueCacheSize=64M
+```
+
+6. Iniciar los servicios de Zabbix y Apache
+   
+```bash
+sudo systemctl restart zabbix-server zabbix-agent2 apache2
+sudo systemctl enable zabbix-server zabbix-agent2 apache2
+```
+
+7. Configuración de Red Estática (Opcional pero Recomendado)
 
 ```bash
 sudo nano /etc/network/interfaces
 ```
 
+Configura tu adaptador de red (ejemplo ens192):
+
 ```bash
 auto ens192
 iface ens192 inet static
-    address 192.168.100.***
+    address 192.168.100.173
     netmask 255.255.255.0
-    gateway 192.168.***.***
+    gateway 192.168.100.1
+    dns-nameservers 8.8.8.8 1.1.1.1
 ```
-
-```bash
-sudo nano /etc/resolv.conf
-```
-
-```bash
-search.domino.test
-nameserver 192.168.***.***
-nameserver 192.168.***.***
-nameserver 1.1.1.1
-```
+Aplica los cambios reiniciando la red:
 
 ```bash
 sudo systemctl restart networking
 ```
 
---------------------------------------------------------------------------------------------------------------
-
-Para asegurar el correcto funcionamiento de Zabbix y proteger tu servidor Linux (Debian) usando el firewall nativo UFW (Uncomplicated Firewall), debes habilitar los puertos del servidor Zabbix, la interfaz Web y SSH.
-
-Puertos esenciales de Zabbix
-
-10051/TCP: Puerto del Zabbix Server (escucha los datos que envían los agentes o proxies).
-10050/TCP: Puerto del Zabbix Agent (solo si el servidor se monitorea a sí mismo).
-80/TCP y 443/TCP: Puertos para acceder a la interfaz Web de Zabbix.
-22/TCP: Puerto SSH para administración del servidor.
-
-1.- Permitir el acceso SSH (Evita quedar bloqueado):
-Asegúrate de permitir primero la conexión de administración por SSH antes de activar el firewall:
+8. Configuración de Seguridad con UFW Firewall
+Habilita las reglas esenciales para administrar y recibir métricas de monitoreo:
 
 ```bash
+8. Configuración de Seguridad con UFW Firewall
+Habilita las reglas esenciales para administrar y recibir métricas de monitoreo:
+
+# 1. Permitir administración por SSH (Evita bloqueo)
 sudo ufw allow 22/tcp
-```
 
-Verificación: Ejecuta sudo ufw status para verificar las reglas añadidas.2.
-
-2.- Abrir puertos de la Web y Zabbix Server:
-     Abre el acceso al panel Web y a la comunicación con los agentes de tu red:
-
-# Permitir acceso Web (HTTP/HTTPS)
-```bash
+# 2. Permitir tráfico Web (Panel de Zabbix)
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
-```
 
-# Permitir puerto de Zabbix Server (recepción de métricas)
-```bash
+# 3. Permitir comunicación con Zabbix Server y Agentes
 sudo ufw allow 10051/tcp
-```
-
-# Permitir puerto del Agente local (opcional)
-```bash
 sudo ufw allow 10050/tcp
-```
 
-3.- Habilitar el firewall:
-    Activa el firewall para aplicar las reglas:
-```bash
+# 4. Habilitar y verificar el Firewall
 sudo ufw enable
+sudo ufw status verbose
 ```
-Verificación: Presiona y cuando solicite confirmación y presiona Enter.
 
-4.- Confirmar el estado final del firewall:
-    Muestra la lista de puertos abiertos y la política de seguridad ejecutando:
+9. Acceso a la Interfaz Web
 
-```bash
-  sudo ufw status verbose
-```
-Verificación: Debes ver las reglas en estado ALLOW para los puertos 22, 80, 443, 10050 y 10051.
+http://192.168.100.173/zabbix (o http://localhost/zabbix)
 
-
+Sigue el asistente de instalación Web para completar la conexión con la base de datos.
