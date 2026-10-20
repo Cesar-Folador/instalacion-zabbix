@@ -162,3 +162,48 @@ sudo ufw status verbose
 http://192.168.100.173/zabbix (o http://localhost/zabbix)
 
 Sigue el asistente de instalación Web para completar la conexión con la base de datos.
+
+
+
+--------------------------
+Utilizacion de la memoria.
+
+<img width="261" height="249" alt="image" src="https://github.com/user-attachments/assets/426b0247-c7b1-4bd0-9a4a-82ecfad8934a" />
+
+
+Si hay mucho consumo de memoria en el servidor Zabbix, y no se cuenta con muchos recursos.
+
+El consumo del 64.82% que marca el reloj es un comportamiento normal en Linux, ya que el sistema utiliza la memoria libre para acelerar lecturas en disco (búf/caché). Sin embargo, como tu servidor solo monitorea unas 20 máquinas virtuales, este porcentaje se puede bajar considerablemente liberando los recursos que no se están aprovechando.  
+Para reducir el consumo de memoria en tu servidor, aplica estos tres ajustes en orden:
+
+Reducir el Buffer Pool de MariaDB a 1 GB:
+
+Para 20 máquinas virtuales, tener el buffer en 2 GB es más de lo necesario. Redúcelo a 1 GB para liberar 1 GB de RAM al sistema:
+
+1.- Abre la configuración de MariaDB:
+
+```bash
+sudo nano /etc/mysql/mariadb.conf.d/50-server.cnf
+```
+
+2.- Cambia la línea de 2G a 1G:
+
+```bash
+innodb_buffer_pool_size = 1G
+```
+
+3.- Guarda los cambios (Ctrl + O, Enter, Ctrl + X) y reinicia MariaDB:
+
+```bash
+sudo systemctl restart mariadb
+```
+
+Verificación: Ejecuta sudo mysql -e "SHOW VARIABLES LIKE 'innodb_buffer_pool_size';" y confirma que indique aproximadamente 1073741824 bytes.
+
+
+<img width="427" height="115" alt="image" src="https://github.com/user-attachments/assets/66e6a1dd-2b98-4336-b0f9-0b820784e0f8" />
+
+
+<img width="280" height="278" alt="image" src="https://github.com/user-attachments/assets/cdb6bd60-eb84-4281-a15d-17b8b62afb37" />
+
+
